@@ -1,0 +1,17 @@
+name: TownyMarket
+version: "${version}"
+main: jp.alticeworks.townymarket.TownyMarket
+api-version: '1.21.11'
+author: "アルティス(TUPB_Altice) & Manus AI"
+description: Towny nation finance, player companies, stocks and crypto market
+softdepend: [Vault, Towny]
+commands:
+  tm:
+    description: TownyMarket main command
+    usage: /tm <gui|company|list|foreign|crypto|market|help>
+    aliases: [townymarket]
+permissions:
+  townymarket.use:
+    default: true
+  townymarket.admin:
+    default: op

@@ -1,0 +1,27 @@
+package jp.alticeworks.townymarket.gui;
+
+import jp.alticeworks.townymarket.service.MarketService;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.*;
+import org.bukkit.entity.Player;
+import org.bukkit.event.*;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.*;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.plugin.java.JavaPlugin;
+import java.util.*;
+
+public final class MarketGui implements Listener {
+    private final JavaPlugin plugin; private final MarketService service;
+    private static final String MAIN="TownyMarket", STOCK="株式市場", COMPANY="企業経営", CRYPTO="暗号資産", TAX="国別税率設定";
+    public MarketGui(JavaPlugin plugin,MarketService service){this.plugin=plugin;this.service=service;}
+    public void open(Player p){Inventory inv=Bukkit.createInventory(null,27,Component.text(MAIN,NamedTextColor.DARK_GREEN));button(inv,10,Material.GOLD_INGOT,"株式市場","注文板、現在値、買い／売り注文");button(inv,12,Material.BOOK,"企業経営","企業作成、上場、配当金配布");button(inv,14,Material.AMETHYST_SHARD,"暗号資産","作成、マイニング、ステーキング");button(inv,16,Material.EMERALD,"外資","国王向け外資発行");button(inv,22,Material.LECTERN,"国別税率設定","国王専用。外資・株・暗号資産");p.openInventory(inv);}
+    private void stocks(Player p){Inventory inv=Bukkit.createInventory(null,54,Component.text(STOCK,NamedTextColor.GOLD));button(inv,49,Material.ARROW,"戻る","TownyMarketへ戻る");int slot=0;for(String line:service.market()){if(slot>=45)break;button(inv,slot++,Material.GOLD_NUGGET,line,"/tm orderで指値・成行注文");}button(inv,46,Material.PAPER,"注文コマンド","/tm order BUY <企業名> LIMIT <数量> <価格>\n/tm order SELL <企業名> MARKET <数量>");p.openInventory(inv);}
+    private void companies(Player p){Inventory inv=Bukkit.createInventory(null,27,Component.text(COMPANY,NamedTextColor.BLUE));button(inv,10,Material.CHEST,"企業を作成","/tm company <名前> <株数> <株価>");button(inv,12,Material.DIAMOND,"企業を上場","/tm list <企業名> / 手数料50000");button(inv,14,Material.WRITABLE_BOOK,"経営情報","企業の株式と注文板は株式市場で確認");button(inv,15,Material.GOLD_INGOT,"配当を配布","/tm dividend <企業名> <総額>");button(inv,16,Material.ARROW,"戻る","TownyMarketへ戻る");p.openInventory(inv);}
+    private void crypto(Player p){Inventory inv=Bukkit.createInventory(null,54,Component.text(CRYPTO,NamedTextColor.LIGHT_PURPLE));button(inv,49,Material.ARROW,"戻る","TownyMarketへ戻る");int slot=0;for(String line:service.cryptoList()){if(slot>=45)break;button(inv,slot++,Material.AMETHYST_SHARD,line,"左クリック: マイニング\n右クリック: 1枚ステーキング\nShift右クリック: ステーキング解除");}button(inv,46,Material.NETHER_STAR,"作成","/tm crypto <名前> <記号> <供給量> <開始値>\n手数料10000");p.openInventory(inv);}
+    private void tax(Player p){if(!service.canManageTax(p)){p.closeInventory();p.sendMessage(Component.text("国別税率設定はTowny国王専用です。",NamedTextColor.RED));return;}Inventory inv=Bukkit.createInventory(null,27,Component.text(TAX,NamedTextColor.RED));button(inv,10,Material.EMERALD,"外資税率","左クリック:+1% 右クリック:-1%");button(inv,12,Material.GOLD_INGOT,"株式税率","左クリック:+1% 右クリック:-1%");button(inv,14,Material.AMETHYST_SHARD,"暗号資産税率","左クリック:+1% 右クリック:-1%");button(inv,16,Material.PAPER,"現在の税率","/tm taxinfo");button(inv,22,Material.ARROW,"戻る","TownyMarketへ戻る");p.openInventory(inv);}
+    private void button(Inventory i,int slot,Material m,String name,String lore){ItemStack x=new ItemStack(m);ItemMeta meta=x.getItemMeta();meta.displayName(Component.text(name,NamedTextColor.GREEN));meta.lore(Arrays.stream(lore.split("\\n")).map(s->Component.text(s,NamedTextColor.GRAY)).toList());x.setItemMeta(meta);i.setItem(slot,x);}
+    @EventHandler public void click(InventoryClickEvent e){if(!(e.getWhoClicked() instanceof Player p))return;String title=Plain.text(e.getView().title());if(!Set.of(MAIN,STOCK,COMPANY,CRYPTO,TAX).contains(title))return;e.setCancelled(true);if(title.equals(MAIN)){if(e.getRawSlot()==10)stocks(p);else if(e.getRawSlot()==12)companies(p);else if(e.getRawSlot()==14)crypto(p);else if(e.getRawSlot()==16){p.closeInventory();p.sendMessage(Component.text("外資発行: /tm foreign <記号> <供給量> <価格>",NamedTextColor.YELLOW));}else if(e.getRawSlot()==22)tax(p);return;}if(e.getRawSlot()==49||e.getRawSlot()==22&&title.equals(TAX)){open(p);return;}if(title.equals(COMPANY)){p.closeInventory();if(e.getRawSlot()==10)p.sendMessage(Component.text("企業作成: /tm company <名前> <株数> <株価> [説明]",NamedTextColor.YELLOW));else if(e.getRawSlot()==12)p.sendMessage(Component.text("企業上場: /tm list <企業名>（手数料50000）",NamedTextColor.YELLOW));else if(e.getRawSlot()==15)p.sendMessage(Component.text("配当配布: /tm dividend <企業名> <総額>",NamedTextColor.YELLOW));return;}if(title.equals(TAX)&&e.getRawSlot()<20&&e.getRawSlot()!=16){String type=e.getRawSlot()==10?"foreign":e.getRawSlot()==12?"stock":"crypto";double delta=e.isLeftClick()?1:-1;p.sendMessage(Component.text(service.adjustTax(p,type,delta),NamedTextColor.YELLOW));tax(p);return;}if(title.equals(CRYPTO)&&e.getRawSlot()==46){p.closeInventory();p.sendMessage(Component.text("暗号資産作成: /tm crypto <名前> <記号> <供給量> <開始値>（手数料10000）",NamedTextColor.YELLOW));return;}if(title.equals(CRYPTO)&&e.getRawSlot()<45&&e.getCurrentItem()!=null){String symbol=Plain.text(e.getCurrentItem().getItemMeta().displayName()).split(" / ")[0];String result=e.isShiftClick()&&e.isRightClick()?service.unstake(p,symbol):e.isRightClick()?service.stake(p,symbol,1):service.mine(p,symbol);p.sendMessage(Component.text(result,NamedTextColor.YELLOW));p.closeInventory();}}
+    private static final class Plain {static String text(Component c){return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(c);}}
+}

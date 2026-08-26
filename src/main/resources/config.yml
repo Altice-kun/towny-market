@@ -1,7 +1,0 @@
-fees:
-  company-listing: 50000
-  nation-foreign-issue: 100000
-  crypto-create: 10000
-market:
-  minimum-price: 1
-  currency: server-economy
